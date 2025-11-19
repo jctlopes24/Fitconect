@@ -17,10 +17,18 @@ const validateObjectIdParam = (paramName = 'id') => (req, res, next) => {
 };
 
 // Obter perfil do utilizador atual
-router.get("/profile", async (req, res) => {
+router.get("/profile", authenticateToken, async (req, res) => {
   try {
     const user = req.user;
-    
+
+    // Segurança extra
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuário não encontrado'
+      });
+    }
+
     res.json({
       success: true,
       message: 'Perfil obtido com sucesso',

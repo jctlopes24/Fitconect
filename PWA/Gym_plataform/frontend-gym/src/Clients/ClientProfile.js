@@ -17,6 +17,7 @@ export default function ClientProfile() {
     const fetchProfile = async () => {
       try {
         const res = await fetch('/api/users/profile', {
+          method: 'GET',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
