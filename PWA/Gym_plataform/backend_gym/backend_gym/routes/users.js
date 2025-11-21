@@ -8,43 +8,63 @@ const router = express.Router();
 
 // Middleware para validar ObjectId em params
 const validateObjectIdParam = (paramName = 'id') => (req, res, next) => {
-	const val = req.params[paramName];
-	if (!val) return next();
-	if (!mongoose.Types.ObjectId.isValid(val)) {
-		return res.status(400).json({ success: false, message: 'ID inválido' });
-	}
-	return next();
+  const val = req.params[paramName];
+  if (!val) return next();
+  if (!mongoose.Types.ObjectId.isValid(val)) {
+    return res.status(400).json({ success: false, message: 'ID inválido' });
+  }
+  return next();
 };
 
-// Obter perfil do utilizador atual
-router.get("/profile", authenticateToken, async (req, res) => {
-  try {
-    const user = req.user;
+router.get(
+  "/profile",
+  authenticateToken, // equivalente ao Users.autorize(...)
+  async (req, res, next) => {
+    try {
+      console.log("get the perfil of user");
 
-    // Segurança extra
-    if (!user) {
-      return res.status(404).json({
+      // id vem do token decodificado
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: "Token inválido ou utilizador não autenticado"
+        });
+      }
+
+      // Buscar utilizador pelo ID
+      const user = await Users.findUserById(userId);
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "Utilizador não encontrado"
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        message: "Perfil obtido com sucesso",
+        data: {
+          user: user.getPublicProfile() // equivalente ao teu antigo res.send({ data: user })
+        }
+      });
+
+      next && next();
+    } catch (error) {
+      console.error("Erro ao obter perfil:", error);
+
+      res.status(500).json({
         success: false,
-        message: 'Usuário não encontrado'
+        message: "Erro interno do servidor",
+        error:
+          process.env.NODE_ENV === "development" ? error.message : undefined
       });
     }
-
-    res.json({
-      success: true,
-      message: 'Perfil obtido com sucesso',
-      data: {
-        user: user.getPublicProfile()
-      }
-    });
-  } catch (error) {
-    console.error('Erro ao obter perfil:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro interno do servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
   }
-});
+);
+
 
 // Atualizar perfil do utilizador atual
 router.put("/profile", async (req, res) => {
@@ -93,7 +113,7 @@ router.put("/profile", async (req, res) => {
 
   } catch (error) {
     console.error('Erro ao atualizar perfil:', error);
-    
+
     if (error.code === 11000) {
       const field = Object.keys(error.keyPattern)[0];
       return res.status(400).json({
@@ -110,13 +130,15 @@ router.put("/profile", async (req, res) => {
   }
 });
 
+
+
 // Obter utilizador por ID
 // router.get("/:id", validateObjectIdParam('id'), async (req, res) => {
 //   try {
 //     const { id } = req.params;
-    
+
 //     const user = await User.findById(id).select('-password -loginAttempts -lockUntil');
-    
+
 //     if (!user) {
 //       return res.status(404).json({
 //         success: false,
@@ -148,22 +170,22 @@ router.get("/", async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
-    
+
     // Construir filtros
     const filters = {};
-    
+
     if (req.query.role) {
       filters.role = req.query.role;
     }
-    
+
     if (req.query.isActive !== undefined) {
       filters.isActive = req.query.isActive === 'true';
     }
-    
+
     if (req.query.isApproved !== undefined) {
       filters.isApproved = req.query.isApproved === 'true';
     }
-    
+
     if (req.query.search) {
       filters.$or = [
         { firstName: { $regex: req.query.search, $options: 'i' } },
@@ -217,13 +239,13 @@ router.get("/trainers", async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
-    
+
     const filters = { role: 'trainer' };
-    
+
     if (req.query.isApproved !== undefined) {
       filters.isApproved = req.query.isApproved === 'true';
     }
-    
+
     if (req.query.search) {
       filters.$or = [
         { firstName: { $regex: req.query.search, $options: 'i' } },
@@ -276,12 +298,12 @@ router.get("/trainer/clients", async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
-    
-    const filters = { 
+
+    const filters = {
       role: 'client',
       assignedTrainer: trainerId
     };
-    
+
     if (req.query.search) {
       filters.$or = [
         { firstName: { $regex: req.query.search, $options: 'i' } },
@@ -654,7 +676,7 @@ router.post("/admin/trainers", async (req, res) => {
 
   } catch (error) {
     console.error('Erro ao criar trainer:', error);
-    
+
     if (error.code === 11000) {
       const field = Object.keys(error.keyPattern)[0];
       return res.status(400).json({
@@ -722,7 +744,7 @@ router.put("/admin/trainers/:id", async (req, res) => {
 
   } catch (error) {
     console.error('Erro ao atualizar trainer:', error);
-    
+
     if (error.code === 11000) {
       const field = Object.keys(error.keyPattern)[0];
       return res.status(400).json({
@@ -850,7 +872,7 @@ router.post("/trainer/clients", async (req, res) => {
 
   } catch (error) {
     console.error('Erro ao criar cliente:', error);
-    
+
     if (error.code === 11000) {
       const field = Object.keys(error.keyPattern)[0];
       return res.status(400).json({
@@ -906,9 +928,9 @@ router.put("/admin/user/:id/toggle-status", async (req, res) => {
 router.get("/:id", validateObjectIdParam('id'), async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const user = await User.findById(id).select('-password -loginAttempts -lockUntil');
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -933,5 +955,28 @@ router.get("/:id", validateObjectIdParam('id'), async (req, res) => {
     });
   }
 });
+router
+  .route("/p")
+  .get(
+    Users.autorize([scopes.NonMember, scopes.Member]),
+    function (req, res, next) {
+      console.log("get the perfil of user");
+      // the id is get when the token has decoded
+      let userId = req.id;
+      Users.findUserById(userId)
+        .then((user) => {
+          res.status(200);
+          res.send({
+            data: user
+          });
+          next();
+        })
+        .catch((err) => {
+          console.log('Perfil', err);
+          res.status(404);
+          next();
+        });
+    }
+  );
 
 export default router;

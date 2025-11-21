@@ -2,10 +2,14 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 
 // Middleware para verificar JWT token
+import jwt from 'jsonwebtoken';
+import User from '../models/User.js';
+
+// Middleware para verificar JWT token
 export const authenticateToken = async (req, res, next) => {
   try {
     const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+    const token = authHeader && authHeader.split(' ')[1];
 
     if (!token) {
       return res.status(401).json({ 
@@ -33,7 +37,11 @@ export const authenticateToken = async (req, res, next) => {
       });
     }
 
+    // Adiciona os dados ao request para usar nos próximos middlewares/controllers
     req.user = user;
+    req.id = user._id;
+    req.roleUser = user.role;
+    
     next();
   } catch (error) {
     if (error.name === 'JsonWebTokenError') {

@@ -1,14 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 
-const Login = () => {
+const Login = ({ data }) => {
     const [formData, setFormData] = useState({
-        username: '', // Mudado de 'email' para 'username'
+        username: '',
         password: ''
     });
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
+
+    // UseEffect para login automático quando dados QR são recebidos
+    useEffect(() => {
+        if (data && data.username && data.isQrCode) {
+            console.log('Login automático com QR Code', data);
+            handleQRLogin(data);
+        }
+    }, [data]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -17,6 +25,35 @@ const Login = () => {
             [name]: value
         }));
     };
+
+    // Exemplo de handleQRLogin
+    const handleQRLogin = async (qrData) => {
+        try {
+            const response = await fetch('http://localhost:5000/api/login/qr', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ qrData }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Erro desconhecido no login QR');
+            }
+
+            // login bem-sucedido
+            console.log('Login QR realizado:', data);
+            // podes guardar o token no localStorage/sessionStorage
+            localStorage.setItem('token', data.data.token);
+
+        } catch (err) {
+            console.error('Erro no login QR:', err);
+            alert(err.message);
+        }
+    };
+
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -31,39 +68,28 @@ const Login = () => {
                     'Accept': 'application/json'
                 },
                 body: JSON.stringify({
-                    username: formData.username, // Agora está correto
+                    username: formData.username,
                     password: formData.password
                 })
             });
 
             const data = await response.json();
-            
+
             if (!response.ok) {
                 throw new Error(data.message || data.error || 'Erro no login');
             }
 
-            // Verifica se a resposta tem a estrutura esperada
             if (!data.success) {
                 throw new Error(data.message || 'Login falhou');
             }
 
-            // Salva os dados (ajustado para a estrutura do teu backend)
             localStorage.setItem('token', data.data.token);
-            localStorage.setItem('user', JSON.stringify(data.data.user)); 
+            localStorage.setItem('user', JSON.stringify(data.data.user));
 
-            console.log('Dados salvos:', {
-                token: !!data.data.token,
-                user: data.data.user,
-                role: data.data.user.role
-            }); 
-
-            // Dispara evento para atualizar componentes
             window.dispatchEvent(new Event('userChanged'));
-            console.log('Evento userChanged disparado');
 
             setFormData({ username: '', password: '' });
 
-            // Redireciona conforme o role
             if (data.data.user.role === 'admin') {
                 navigate('/produtos');
             } else {
@@ -116,7 +142,7 @@ const Login = () => {
                     {loading ? 'Entrando...' : 'Entrar'}
                 </button>
             </form>
-            
+
             <Link to="/recuperar-password" className="forgot-password">
                 Esqueci-me da palavra-passe
             </Link>
