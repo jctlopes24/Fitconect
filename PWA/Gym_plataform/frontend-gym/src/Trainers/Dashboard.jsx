@@ -11,6 +11,7 @@ export default function TrainerDashboard() {
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [user, setUser] = useState(null);
+ 
   
   // Estado para o Formulário de Novo Plano
   const [exercisesList, setExercisesList] = useState([]); // Lista de exercícios do BD
@@ -283,7 +284,7 @@ export default function TrainerDashboard() {
                 <label>ID do Cliente</label>
                 <input 
                   type="text" 
-                  placeholder="ID do MongoDB do Cliente"
+                  placeholder="Cliente ID"
                   value={newPlan.clientId} 
                   onChange={e => setNewPlan({...newPlan, clientId: e.target.value})}
                   required 
